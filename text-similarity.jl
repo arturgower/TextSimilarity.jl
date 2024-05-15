@@ -11,9 +11,7 @@
 using TextAnalysis, LinearAlgebra
 
 using CSV, DataFrames
-using Statistics, LinearAlgebra
-
-
+using Statistics
 
 
 # corpus = Corpus([
