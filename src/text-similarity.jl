@@ -1,20 +1,9 @@
-# Great discussion on the topic:
-# https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
-
-# A website with some details:
-# https://makeshiftinsights.com/blog/tf-idf-document-similarity/#:~:text=The%20Method&text=TF%2DIDF%20is%20essentially%20a,inverse%20document%20frequency%20(IDF).
-
-# A much more advanced method would be to use MOSS:
-# https://github.com/soachishti/moss.py 
 
 
-using TextAnalysis, LinearAlgebra
 
-using CSV, DataFrames
-using Statistics
-
-
-function text_similarity(strings::Vector{String}; trim_code = true, remove_comments = false)
+function text_similarity(strings::Vector{String}; 
+        trim_code = true, remove_comments = false
+    )
 
     if remove_comments && !trim_code
         error("trim_code should be true if you want to remove comments")

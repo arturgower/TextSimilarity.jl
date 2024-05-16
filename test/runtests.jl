@@ -1,7 +1,7 @@
-using TextSimilarity
-using Test, Random
+# using TextSimilarity
+# using Test, Random
 
-include("../src/text-similarity.jl")
+# include("../src/text-similarity.jl")
 
 @testset "TextSimilarity.jl" begin
 
