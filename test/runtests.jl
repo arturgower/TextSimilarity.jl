@@ -30,4 +30,7 @@ include("../src/text-similarity.jl")
     
     @test norm(sort(element_similarities, rev=true) - element_similarities) / norm(element_similarities) < 0.1
 
+
+    @test all(element_similarities[1:3] .> 0.5)
+    @test all(element_similarities[end-3:end] .< 0.1)
 end
