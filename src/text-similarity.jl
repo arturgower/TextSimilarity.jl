@@ -14,15 +14,6 @@ using CSV, DataFrames
 using Statistics
 
 
-# corpus = Corpus([
-#     StringDocument("To be or not to be"),
-#     StringDocument("To become or not to become"), 
-#     StringDocument("there are too many fishies in this pond 2 =3 * 4"), 
-#     StringDocument("what if I use the same formula 2 =3 * 4"),
-#     StringDocument(" a2 = x * data \n b = a2 + c \n % I wrote this to do something"),
-#     StringDocument(" a3 = x * data \n b2 = a3 + c \n % this does that thing")
-# ])
-
 function text_similarity(strings::Vector{String}; trim_code = true, remove_comments = false)
 
     if remove_comments && !trim_code
