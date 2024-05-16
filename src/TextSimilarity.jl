@@ -11,7 +11,6 @@ module TextSimilarity
 
 export text_similarity, group_similar
 
-
 using TextAnalysis, LinearAlgebra
 using Statistics, Random
 

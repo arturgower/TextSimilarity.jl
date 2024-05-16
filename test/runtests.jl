@@ -1,4 +1,4 @@
-# using TextSimilarity
+using TextSimilarity
 using Test, Random
 
 # include("../src/text-similarity.jl")
