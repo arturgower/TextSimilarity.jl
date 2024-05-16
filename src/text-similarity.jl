@@ -5,7 +5,8 @@
 Collects all the terms (or words) in all the strings which I think is then called the lexicon. Then creates a vector for each string with the number of occurences of each term in the lexicon. These vectors are then the rows of the DocumentTermMatrix. We then just compute the distance between the rows.
 """
 function text_similarity(strings::Vector{String}; 
-        trim_code = true, remove_comments = false
+        trim_code = true, remove_comments = false,
+        inverse_term_frequency = true
     )
 
     if remove_comments && !trim_code
@@ -38,18 +39,19 @@ function text_similarity(strings::Vector{String};
 
     # see the terms identified
     m.terms
-
-    # to extract numerical values from this special type we can use 
-    tfs = dtm(m, :dense) |> transpose |> collect
-
-    # Am not sure idf, which stands for "inverse document frequency" is the best for coding.
-    # tfs = tf_idf(m) |> transpose |> collect
+    
+    tfs =  if inverse_term_frequency
+        # Am not sure idf, which stands for "inverse document frequency" is the best for coding.
+        tf_idf(m) |> transpose |> collect
+    else    
+        # to extract numerical values from this special type we can use 
+        dtm(m, :dense) |> transpose |> collect
+    end    
 
     similarity_matrix = [
         if i >= j 
             -1.0
         else     
-            # dot(tfs[i,:],tfs[j,:]) / (norm(tfs[i,:]) * norm(tfs[j,:]))
             dot(tfs[:,i],tfs[:,j]) / (norm(tfs[:,i]) * norm(tfs[:,j]))
         end    
     for i = 1:size(tfs,2), j = 1:size(tfs,2)]
