@@ -27,10 +27,10 @@ using Test, Random, LinearAlgebra
         string(str_vec[i]...)
     end
 
-    indices, similarity_vector = text_similarity(strings);
+    indices, similarity_vector = text_similarity(strings; inverse_term_frequency = false);
 
     # check that the values in similarity_vector do correspond to the pairs in indices
-    inds, sims = text_similarity(strings[indices[1]]) 
+    inds, sims = text_similarity(strings[indices[1]]; inverse_term_frequency = false) 
 
     @test sims[1] ≈ similarity_vector[1]
     
@@ -43,4 +43,16 @@ using Test, Random, LinearAlgebra
     @test norm(sort(element_similarities, rev=true) - element_similarities) / norm(element_similarities) < 0.1
 
     @test all(element_similarities[1:3] .> 0.7)
+
+
+    group_inds, group_similarities = group_similar(strings; similarity_tolerance = 0.92, inverse_term_frequency = false);
+
+    @test group_inds[1][1:3] == [1,2,3];
+
+
+    indices, similarity_vector = text_similarity(strings; inverse_term_frequency = true);
+
+    group_inds, group_similarities = group_similar(strings; similarity_tolerance = 0.7, inverse_term_frequency = true);
+
+    @test group_inds[1][1:3] == [1,2,3];
 end

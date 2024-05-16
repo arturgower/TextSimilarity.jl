@@ -68,9 +68,9 @@ function text_similarity(strings::Vector{String};
     indices = indices[sort_inds]
     similarity_vector = similarity_vector[sort_inds]   
 
-    println("The two most similar documents are")
-    println("Doc 1: \n $(corpus[indices[1][1]].text)")
-    println("Doc 2: \n $(corpus[indices[1][2]].text)")
+    # println("The two most similar documents are")
+    # println("Doc 1: \n $(corpus[indices[1][1]].text)")
+    # println("Doc 2: \n $(corpus[indices[1][2]].text)")
 
     return indices, similarity_vector
 end
