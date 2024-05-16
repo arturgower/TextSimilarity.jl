@@ -1,12 +1,18 @@
 using TextSimilarity
-using Test, Random
-
-# include("../src/text-similarity.jl")
+using Test, Random, LinearAlgebra
 
 @testset "TextSimilarity.jl" begin
 
+    symbols_string = "\n ( ) [ ] , = * . = { } \$ ^ & ! \n";
+
     len = 400;
+    str1 = randstring(len - 100) |> collect;
+    str2 = randstring(symbols_string, 100) |> collect;
+    inds = rand(1:len,len)
+
     str = randstring(len) |> collect;
+    str[inds[1:(len-100)]] = str1;
+    str[inds[(len-99):end]] = str2;
 
     files_len = 100;
 
@@ -15,12 +21,18 @@ using Test, Random
     # make more and more modifictions
     inds = 1:len
     strings = map(1:files_len) do i
-        str_vec[i][rand(inds,4i)] = collect(randstring(4i))
+        str_vec[i][rand(inds,3i)] = collect(randstring(3i))
+        str_vec[i][rand(inds,i)] = collect(randstring(symbols_string,i))
 
         string(str_vec[i]...)
     end
 
     indices, similarity_vector = text_similarity(strings);
+
+    # check that the values in similarity_vector do correspond to the pairs in indices
+    inds, sims = text_similarity(strings[indices[1]]) 
+
+    @test sims[1] ≈ similarity_vector[1]
     
     # The elements which are most similar to all others are the first ones. So the list below should be approximately decreasing
     element_similarities = map(1:100) do i 
@@ -30,7 +42,5 @@ using Test, Random
     
     @test norm(sort(element_similarities, rev=true) - element_similarities) / norm(element_similarities) < 0.1
 
-
-    @test all(element_similarities[1:3] .> 0.5)
-    @test all(element_similarities[end-3:end] .< 0.1)
+    @test all(element_similarities[1:3] .> 0.7)
 end

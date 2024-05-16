@@ -1,6 +1,9 @@
 
+"""
+    text_similarity(strings::Vector{String}; trim_code = true, remove_comments = false)
 
-
+Collects all the terms (or words) in all the strings which I think is then called the lexicon. Then creates a vector for each string with the number of occurences of each term in the lexicon. These vectors are then the rows of the DocumentTermMatrix. We then just compute the distance between the rows.
+"""
 function text_similarity(strings::Vector{String}; 
         trim_code = true, remove_comments = false
     )
@@ -10,16 +13,20 @@ function text_similarity(strings::Vector{String};
     end    
 
     if trim_code 
-        strings = map(strings) do s
-            s = replace(s, ';' => "" )
+        strings = map(strings) do str
+            str = replace(str, ';' => "" )
 
-            s_split = split(s,"\n");
-            s_inds = if remove_comments
-                findall(s -> !isempty(s) && s[1] != '%', s_split)
+            # s_split = split(s,"\n");
+            if remove_comments
+                s_split = split(str,"\n");
+                s_inds = findall(s -> !isempty(s) && s[1] != '%', s_split)
+
+                s_split = [string(s,"\n") for s in s_split[s_inds]]
+
+                string(s_split...)[1:end-1]
             else
-                findall(s -> !isempty(s), s_split)
-            end    
-            string(s_split[s_inds]...)
+                str
+            end
         end
     end    
 
@@ -33,23 +40,25 @@ function text_similarity(strings::Vector{String};
     m.terms
 
     # to extract numerical values from this special type we can use 
-    dtm(m, :dense)
+    tfs = dtm(m, :dense) |> transpose |> collect
 
-    tfs = tf_idf(m)
+    # Am not sure idf, which stands for "inverse document frequency" is the best for coding.
+    # tfs = tf_idf(m) |> transpose |> collect
 
     similarity_matrix = [
         if i >= j 
-            0.0
+            -1.0
         else     
-            dot(tfs[i,:],tfs[j,:]) / (norm(tfs[i,:]) * norm(tfs[j,:]))
+            # dot(tfs[i,:],tfs[j,:]) / (norm(tfs[i,:]) * norm(tfs[j,:]))
+            dot(tfs[:,i],tfs[:,j]) / (norm(tfs[:,i]) * norm(tfs[:,j]))
         end    
-    for i = 1:size(tfs,1), j = 1:size(tfs,1)]
+    for i = 1:size(tfs,2), j = 1:size(tfs,2)]
 
 
     similarity_vector = similarity_matrix[:]
-    indices = [ [i,j] for i = 1:size(tfs,1), j = 1:size(tfs,1)][:]
+    indices = [ [i,j] for i = 1:size(tfs,2), j = 1:size(tfs,2)][:]
 
-    indices_delete = findall(similarity_vector .≈ 0.0)
+    indices_delete = findall(similarity_vector .== -1.0)
     deleteat!(similarity_vector,indices_delete)
     deleteat!(indices,indices_delete)
 
