@@ -1,3 +1,7 @@
+
+# Wikipage:
+# https://en.wikipedia.org/wiki/Vector_space_model
+
 # Great discussion on the topic:
 # https://stackoverflow.com/questions/8897593/how-to-compute-the-similarity-between-two-text-documents
 
