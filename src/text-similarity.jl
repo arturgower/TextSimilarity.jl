@@ -22,26 +22,25 @@ function text_similarity(strings::Vector{String};
             str = replace(str, '_' => "" )
 
             # s_split = split(s,"\n");
-            sd = if remove_comments
+            if remove_comments
                 s_split = split(str,"\n");
                 s_inds = findall(s -> !isempty(s) && s[1] != '%', s_split)
 
                 s_split = [string(s,"\n") for s in s_split[s_inds]]
 
-                StringDocument(solution)(string(s_split...)[1:end-1])
+                string(s_split...)[1:end-1]
             else
-                StringDocument(str)
+                str
             end
-
-            remove_case!(sd)
-            stem!(sd)
-
-            sd
         end
-    else [StringDocument(solution) for solution in strings]
     end    
 
     corpus = Corpus(stringdocs);
+
+    if trim_code 
+        remove_case!(corpus)
+        stem!(corpus)
+    end    
 
     update_lexicon!(corpus)
 
