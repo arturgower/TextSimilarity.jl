@@ -16,26 +16,28 @@ function text_similarity(strings::Vector{String};
         error("trim_code should be true if you want to remove comments")
     end    
 
-    stringdocs = if trim_code 
-        map(strings) do str
+    if trim_code 
+        strings = map(strings) do str
             str = replace(str, ';' => "" )
             str = replace(str, '_' => "" )
+            
+            s_split = split(str,"\n");
 
-            # s_split = split(s,"\n");
-            if remove_comments
-                s_split = split(str,"\n");
-                s_inds = findall(s -> !isempty(s) && s[1] != '%', s_split)
+            # remove empty lines
+            s_split = s_split[findall(s_split .!= "")]
 
-                s_split = [string(s,"\n") for s in s_split[s_inds]]
+            if remove_comments 
+                s_inds =  findall(s -> !isempty(s) && s[1] != '%', s_split)
+                s_split = s_split[s_inds]
+            end    
 
-                string(s_split...)[1:end-1]
-            else
-                str
-            end
+            s_split = [string(s,"\n") for s in s_split]
+
+            string(s_split...)[1:end-1]
         end
     end    
 
-    corpus = Corpus(stringdocs);
+    corpus = Corpus(StringDocument.(strings));
 
     if trim_code 
         remove_case!(corpus)
