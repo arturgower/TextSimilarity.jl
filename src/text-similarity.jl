@@ -3,6 +3,9 @@
     text_similarity(strings::Vector{String}; trim_code = true, remove_comments = false)
 
 Collects all the terms (or words) in all the strings which I think is then called the lexicon. Then creates a vector for each string with the number of occurences of each term in the lexicon. These vectors are then the rows of the DocumentTermMatrix. We then just compute the distance between the rows.
+
+The options: 
+    trim_code = true # removes capitals, semi-colon, and stems words
 """
 function text_similarity(strings::Vector{String}; 
         trim_code = true, remove_comments = false,
@@ -13,25 +16,32 @@ function text_similarity(strings::Vector{String};
         error("trim_code should be true if you want to remove comments")
     end    
 
-    if trim_code 
-        strings = map(strings) do str
+    stringdocs = if trim_code 
+        map(strings) do str
             str = replace(str, ';' => "" )
+            str = replace(str, '_' => "" )
 
             # s_split = split(s,"\n");
-            if remove_comments
+            sd = if remove_comments
                 s_split = split(str,"\n");
                 s_inds = findall(s -> !isempty(s) && s[1] != '%', s_split)
 
                 s_split = [string(s,"\n") for s in s_split[s_inds]]
 
-                string(s_split...)[1:end-1]
+                StringDocument(solution)(string(s_split...)[1:end-1])
             else
-                str
+                StringDocument(str)
             end
+
+            remove_case!(sd)
+            stem!(sd)
+
+            sd
         end
+    else [StringDocument(solution) for solution in strings]
     end    
 
-    corpus = Corpus([StringDocument(solution) for solution in strings]);
+    corpus = Corpus(stringdocs);
 
     update_lexicon!(corpus)
 

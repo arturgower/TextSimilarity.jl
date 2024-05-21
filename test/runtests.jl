@@ -3,7 +3,7 @@ using Test, Random, LinearAlgebra
 
 @testset "TextSimilarity.jl" begin
 
-    symbols_string = "\n ( ) [ ] , = * . = { } \$ ^ & ! \n";
+    symbols_string = "\n ( ) [ ] _ , = * . = { } \$ ^ & ! \n";
 
     len = 400;
     str1 = randstring(len - 100) |> collect;
@@ -47,7 +47,7 @@ using Test, Random, LinearAlgebra
 
     group_inds, group_similarities = group_similar(strings; similarity_tolerance = 0.92, inverse_term_frequency = false);
 
-    @test group_inds[1][1:3] == [1,2,3];
+    @test sort(group_inds[1][1:3]) == [1,2,3];
 
 
     indices, similarity_vector = text_similarity(strings; inverse_term_frequency = true);
