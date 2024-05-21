@@ -3,6 +3,7 @@ using Test, Random, LinearAlgebra
 
 @testset "TextSimilarity.jl" begin
 
+    pure_symbols_string = "()[]_,=*.={}\$^&!";
     symbols_string = "\n ( ) [ ] _ , = * . = { } \$ ^ & ! \n";
 
     len = 400;
@@ -22,15 +23,17 @@ using Test, Random, LinearAlgebra
     inds = 1:len
     strings = map(1:files_len) do i
         str_vec[i][rand(inds,3i)] = collect(randstring(3i))
-        str_vec[i][rand(inds,i)] = collect(randstring(symbols_string,i))
+        str_vec[i][rand(inds,i)] = collect(randstring(pure_symbols_string,i))
 
         string(str_vec[i]...)
     end
 
-    indices, similarity_vector = text_similarity(strings; inverse_term_frequency = false);
+    method = DocumentTermsComparion(inverse_term_frequency = false)
+
+    indices, similarity_vector = text_similarity(strings, method);
 
     # check that the values in similarity_vector do correspond to the pairs in indices
-    inds, sims = text_similarity(strings[indices[1]]; inverse_term_frequency = false) 
+    inds, sims = text_similarity(strings[indices[1]], method) 
 
     @test sims[1] ≈ similarity_vector[1]
     
@@ -45,14 +48,32 @@ using Test, Random, LinearAlgebra
     @test all(element_similarities[1:3] .> 0.7)
 
 
-    group_inds, group_similarities = group_similar(strings; similarity_tolerance = 0.92, inverse_term_frequency = false);
+    group_inds, group_similarities = group_similar(strings, method; similarity_tolerance = 0.92);
 
     @test sort(group_inds[1][1:3]) == [1,2,3];
 
 
-    indices, similarity_vector = text_similarity(strings; inverse_term_frequency = true);
+    method = DocumentTermsComparion(inverse_term_frequency = true)
 
-    group_inds, group_similarities = group_similar(strings; similarity_tolerance = 0.7, inverse_term_frequency = true);
+    indices, similarity_vector = text_similarity(strings, method);
 
-    @test group_inds[1][1:3] == [1,2,3];
+    group_inds, group_similarities = group_similar(strings, method; similarity_tolerance = 0.65);
+
+    @test sort(group_inds[1][1:3]) == [1,2,3];
+
+## Test direct comparison
+
+    method = DirectComparison(shorten_words = true)
+
+    # shortening words really messes this up, as inserting symbols created new words
+    indices, similarity_vector = text_similarity(strings, method);
+
+    method = DirectComparison(shorten_words = false)
+
+    # shortening words really messes this up, as inserting symbols created new words
+    indices, similarity_vector = text_similarity(strings, method; trim_code = false);
+
+    group_inds, group_similarities = group_similar(strings, method; similarity_tolerance = 0.97);
+
+    # @test group_inds[1][1:3] == [1,2,3];
 end

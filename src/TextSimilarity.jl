@@ -16,7 +16,8 @@
 
 module TextSimilarity
 
-export text_similarity, group_similar
+export DirectComparison, DocumentTermsComparion
+export shorten_terms, trimmed_string_document, text_similarity, group_similar
 
 using TextAnalysis, LinearAlgebra
 using Statistics, Random
