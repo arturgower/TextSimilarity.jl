@@ -2,20 +2,22 @@ abstract type ComparisonMethod end
 
 struct DirectComparison <: ComparisonMethod 
     shorten_words::Bool
+    trim_code::Bool
+    remove_comments::Bool
 end
 
-function DirectComparison(; shorten_words = true)
-
-    return  DirectComparison(shorten_words)
+function DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false)
+    return  DirectComparison(shorten_words, trim_code, remove_comments)
 end
 
 struct DocumentTermsComparion <: ComparisonMethod 
     inverse_term_frequency::Bool
+    trim_code::Bool
+    remove_comments::Bool
 end
 
-function DocumentTermsComparion(; inverse_term_frequency = true)
-
-    return  DocumentTermsComparion(inverse_term_frequency)
+function DocumentTermsComparion(; inverse_term_frequency = true, trim_code = true, remove_comments = false)
+    return  DocumentTermsComparion(inverse_term_frequency, trim_code, remove_comments)
 end
 
 function shorten_words(strdoc::StringDocument)
@@ -23,7 +25,7 @@ function shorten_words(strdoc::StringDocument)
     str = deepcopy(strdoc.text)
 
     # To form a lexicon with just words we will replace the symbols below with spaces
-    symbols_vec = ["(", ")", "[", "]", "_" , "=", "*" ,"." , "{", "}", "\$", "^", "&", "!",";"];
+    symbols_vec = ["\n","(", ")", "[", "]", "_" , "=", "*" ,"." , "{", "}", "\$", "^", "&", "!",";"];
     dic_space = Dict(symbols_vec .=> " ")
 
     for (k, v) in dic_space
@@ -39,12 +41,13 @@ function shorten_words(strdoc::StringDocument)
     ind4 = findall(length.(terms) .> 4);
     term4 = terms[ind4]
 
-    dic4 = Dict(t => t[1:4] for t in term4)
+    # need to substitute the longer words first
+    dic4 = sort(Dict(t => t[1:4] for t in term4), rev = true)
 
     ind2to3 = findall(2 .<= length.(keys(corpus.lexicon)) .<= 4);
     term2to3 = terms[ind2to3]
 
-    dic2to3 = Dict(t => t[1:2] for t in term2to3)
+    dic2to3 = sort(Dict(t => t[1:2] for t in term2to3), rev = true)
 
     dic = merge(dic4, dic2to3)
     for (k, v) in dic
@@ -83,12 +86,9 @@ function trimmed_string_document(str::String; remove_comments = false)
     return str_doc
 end
 
-function text_similarity(strings::Vector{String}, method::DirectComparison; 
-        trim_code = true, remove_comments = false
-    )
-
-    stringdocs = if trim_code
-        trimmed_string_document.(strings; remove_comments = remove_comments)
+function process_strings(strings::Vector{String}, method::DirectComparison)
+    stringdocs = if method.trim_code
+        trimmed_string_document.(strings; remove_comments = method.remove_comments)
     else
         StringDocument.(strings)
     end
@@ -97,13 +97,20 @@ function text_similarity(strings::Vector{String}, method::DirectComparison;
         stringdocs = shorten_words.(stringdocs);
     end    
 
-    string_vecs = map(stringdocs) do strdoc
+    strings = map(stringdocs) do strdoc
         str = replace(strdoc.text, " " => "")
         str = replace(str, "\n" => "")
         str = replace(str, "_" => "")
+    end
 
-        Int.(str |> collect)
-    end;
+    return strings
+end
+
+function text_similarity(strings::Vector{String}, method::DirectComparison)
+
+    strings = process_strings(strings, method)
+
+    string_vecs = [Int.(str |> collect) for str in strings]
 
     similarity_matrix = [
         if i >= j 
@@ -137,15 +144,12 @@ Collects all the terms (or words) in all the strings which I think is then calle
 The options: 
     trim_code = true # removes capitals, semi-colon, and stems words
 """
-function text_similarity(strings::Vector{String}, method::DocumentTermsComparion; 
-        trim_code = true, remove_comments = false,
-        inverse_term_frequency = true
-    )
+function text_similarity(strings::Vector{String}, method::DocumentTermsComparion)
 
     inverse_term_frequency = method.inverse_term_frequency
 
-    corpus = if trim_code
-        Corpus(trimmed_string_document.(strings; remove_comments = remove_comments))
+    corpus = if method.trim_code
+        Corpus(trimmed_string_document.(strings; remove_comments = method.remove_comments))
     else
         Corpus(StringDocument.(strings))
     end    
@@ -185,19 +189,14 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsComparion
     indices = indices[sort_inds]
     similarity_vector = similarity_vector[sort_inds]   
 
-    # println("The two most similar documents are")
-    # println("Doc 1: \n $(corpus[indices[1][1]].text)")
-    # println("Doc 2: \n $(corpus[indices[1][2]].text)")
-
     return indices, similarity_vector
 end
 
 function group_similar(strings::Vector{String}, method::ComparisonMethod; 
         similarity_tolerance::Float64 = 0.985 # ranges from 0 to 1 (identical)
-        , kws...
     )
 
-    indices, similarity_vector = text_similarity(strings, method; kws...);
+    indices, similarity_vector = text_similarity(strings, method);
 
     is = findall(similarity_vector .> similarity_tolerance);
     similarities = deepcopy(similarity_vector[is]);

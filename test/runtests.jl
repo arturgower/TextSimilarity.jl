@@ -63,15 +63,15 @@ using Test, Random, LinearAlgebra
 
 ## Test direct comparison
 
-    method = DirectComparison(shorten_words = true)
+    method = DirectComparison(shorten_words = true, trim_code = true)
 
     # shortening words really messes this up, as inserting symbols created new words
     indices, similarity_vector = text_similarity(strings, method);
 
-    method = DirectComparison(shorten_words = false)
+    method = DirectComparison(shorten_words = false, trim_code = false)
 
     # shortening words really messes this up, as inserting symbols created new words
-    indices, similarity_vector = text_similarity(strings, method; trim_code = false);
+    indices, similarity_vector = text_similarity(strings, method);
 
     group_inds, group_similarities = group_similar(strings, method; similarity_tolerance = 0.97);
 
