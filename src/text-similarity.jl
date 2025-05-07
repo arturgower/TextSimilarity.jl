@@ -42,12 +42,13 @@ function shorten_words(strdoc::StringDocument)
     term4 = terms[ind4]
 
     # need to substitute the longer words first
-    dic4 = sort(Dict(t => t[1:4] for t in term4), rev = true)
+    dic4 = 
+    sort(Dict(t => t[nextind(t,0):nextind(t,3)] for t in term4), rev = true)
 
     ind2to3 = findall(2 .<= length.(keys(corpus.lexicon)) .<= 4);
     term2to3 = terms[ind2to3]
 
-    dic2to3 = sort(Dict(t => t[1:2] for t in term2to3), rev = true)
+    dic2to3 = sort(Dict(t => t[nextind(t,0):nextind(t,1)] for t in term2to3), rev = true)
 
     dic = merge(dic4, dic2to3)
     for (k, v) in dic
