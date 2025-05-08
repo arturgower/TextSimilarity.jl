@@ -4,10 +4,11 @@ struct DirectComparison <: ComparisonMethod
     shorten_words::Bool
     trim_code::Bool
     remove_comments::Bool
+    relative_similarity::Bool
 end
 
-function DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false)
-    return  DirectComparison(shorten_words, trim_code, remove_comments)
+function DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false, relative_similarity = false)
+    return  DirectComparison(shorten_words, trim_code, remove_comments, relative_similarity)
 end
 
 struct DocumentTermsComparion <: ComparisonMethod 
@@ -114,31 +115,43 @@ function text_similarity(strings::Vector{String}, method::DirectComparison)
     string_vecs = [Int.(str |> collect) for str in strings]
 
     similarity_matrix = [
-        if i >= j 
-            -1.0
-        else
-            l = min(length(string_vecs[i]), length(string_vecs[j]))  
-            dot(string_vecs[i][1:l],string_vecs[j][1:l]) / (norm(string_vecs[i]) * norm(string_vecs[j]))
+        begin
+            l = min(length(string_vecs[i]), length(string_vecs[j]))
+            if l == 0
+                0.0
+            else    
+                dot(string_vecs[i][1:l],string_vecs[j][1:l]) / (norm(string_vecs[i]) * norm(string_vecs[j]))
+            end    
         end    
     for i = 1:length(string_vecs), j = 1:length(string_vecs)]
 
-    similarity_vector = similarity_matrix[:]
+    similarity_vector = if method.relative_similarity
+        similaritytogroup = [
+            mean(similarity_matrix[i[1],[1:(i[2]-1); (i[2]+1):end]]) / 2  +
+            mean(similarity_matrix[[1:(i[1]-1); (i[1]+1):end],i[2]]) / 2
+        for i in CartesianIndices(similarity_matrix)]
+
+        (similarity_matrix - similaritytogroup)[:]
+    else similarity_matrix[:]    
+    end
+
     indices = [ [i,j] for i = 1:length(string_vecs), j = 1:length(string_vecs)][:]
 
-    indices_delete = findall(similarity_vector .== -1.0)
+    # indices_delete = findall(similarity_vector .== -1.0)
+    indices_delete = findall([ij[1] >= ij[2] for ij in indices])
     deleteat!(similarity_vector,indices_delete)
     deleteat!(indices,indices_delete)
 
     sort_inds = sortperm(similarity_vector; rev = true)
     indices = indices[sort_inds]
-    similarity_vector = similarity_vector[sort_inds]   
+    similarity_vector = similarity_vector[sort_inds]
 
     return indices, similarity_vector
 end
 
 
 """
-    text_similarity(strings::Vector{String}, DocumentTermsComparion; trim_code = true, remove_comments = false)
+    text_similarity(strings::Vector{String}, DocumentTermsComparion)
 
 Collects all the terms (or words) in all the strings which I think is then called the lexicon. Then creates a vector for each string with the number of occurences of each term in the lexicon. These vectors are then the rows of the DocumentTermMatrix. We then just compute the distance between the rows.
 
@@ -193,11 +206,16 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsComparion
     return indices, similarity_vector
 end
 
-function group_similar(strings::Vector{String}, method::ComparisonMethod; 
+function group_similar(strings::Vector{String}, method::ComparisonMethod; kws...)
+    
+    indices, similarity_vector = text_similarity(strings, method);
+
+    return group_similar(indices, similarity_vector; kws...)
+end
+
+function group_similar(indices::Vector{Vector{Int}}, similarity_vector::Vector{Float64}; 
         similarity_tolerance::Float64 = 0.985 # ranges from 0 to 1 (identical)
     )
-
-    indices, similarity_vector = text_similarity(strings, method);
 
     is = findall(similarity_vector .> similarity_tolerance);
     similarities = deepcopy(similarity_vector[is]);
