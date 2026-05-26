@@ -7,8 +7,22 @@ struct DirectComparison <: ComparisonMethod
     relative_similarity::Bool
 end
 
+"""
+    DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false, relative_similarity = false)
+
+Creates a `DirectComparison` method for comparing strings directly.
+
+# Arguments
+- `shorten_words::Bool`: Whether to shorten words in the strings.
+- `trim_code::Bool`: Whether to trim code (remove unnecessary characters).
+- `remove_comments::Bool`: Whether to remove comments from the strings.
+- `relative_similarity::Bool`: Whether to compute relative similarity.
+
+# Returns
+A `DirectComparison` instance.
+"""
 function DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false, relative_similarity = false)
-    return  DirectComparison(shorten_words, trim_code, remove_comments, relative_similarity)
+    return DirectComparison(shorten_words, trim_code, remove_comments, relative_similarity)
 end
 
 struct DocumentTermsComparion <: ComparisonMethod 
@@ -17,8 +31,21 @@ struct DocumentTermsComparion <: ComparisonMethod
     remove_comments::Bool
 end
 
+"""
+    DocumentTermsComparion(; inverse_term_frequency = true, trim_code = true, remove_comments = false)
+
+Creates a `DocumentTermsComparion` method for comparing strings based on document terms.
+
+# Arguments
+- `inverse_term_frequency::Bool`: Whether to use inverse term frequency.
+- `trim_code::Bool`: Whether to trim code (remove unnecessary characters).
+- `remove_comments::Bool`: Whether to remove comments from the strings.
+
+# Returns
+A `DocumentTermsComparion` instance.
+"""
 function DocumentTermsComparion(; inverse_term_frequency = true, trim_code = true, remove_comments = false)
-    return  DocumentTermsComparion(inverse_term_frequency, trim_code, remove_comments)
+    return DocumentTermsComparion(inverse_term_frequency, trim_code, remove_comments)
 end
 
 function shorten_words(strdoc::StringDocument)
@@ -149,14 +176,18 @@ function text_similarity(strings::Vector{String}, method::DirectComparison)
     return indices, similarity_vector
 end
 
-
 """
-    text_similarity(strings::Vector{String}, DocumentTermsComparion)
+    text_similarity(strings::Vector{String}, method::DocumentTermsComparion)
 
-Collects all the terms (or words) in all the strings which I think is then called the lexicon. Then creates a vector for each string with the number of occurences of each term in the lexicon. These vectors are then the rows of the DocumentTermMatrix. We then just compute the distance between the rows.
+Computes the similarity between strings using the `DocumentTermsComparion` method.
 
-The options: 
-    trim_code = true # removes capitals, semi-colon, and stems words
+# Arguments
+- `strings::Vector{String}`: A vector of strings to compare.
+- `method::DocumentTermsComparion`: The comparison method to use.
+
+# Returns
+- `indices::Vector{Vector{Int}}`: Pairs of indices representing similar strings.
+- `similarity_vector::Vector{Float64}`: Similarity scores for the pairs.
 """
 function text_similarity(strings::Vector{String}, method::DocumentTermsComparion)
 
@@ -168,6 +199,9 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsComparion
         Corpus(StringDocument.(strings))
     end    
 
+    remove_case!(corpus)
+    prepare!(corpus, strip_punctuation)
+
     update_lexicon!(corpus)
 
     m = DocumentTermMatrix(corpus)
@@ -176,7 +210,7 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsComparion
     m.terms
     
     tfs =  if inverse_term_frequency
-        # Am not sure idf, which stands for "inverse document frequency" is the best for coding.
+        # Am not sure idf (inverse document frequency) is the best for coding.
         tf_idf(m) |> transpose |> collect
     else    
         # to extract numerical values from this special type we can use 
@@ -186,6 +220,8 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsComparion
     similarity_matrix = [
         if i >= j 
             -1.0
+        elseif norm(tfs[:,i]) == 0 || norm(tfs[:,j]) == 0
+            0.0     
         else     
             dot(tfs[:,i],tfs[:,j]) / (norm(tfs[:,i]) * norm(tfs[:,j]))
         end    
@@ -206,6 +242,20 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsComparion
     return indices, similarity_vector
 end
 
+"""
+    group_similar(strings::Vector{String}, method::ComparisonMethod; kws...)
+
+Groups similar strings based on the specified comparison method.
+
+# Arguments
+- `strings::Vector{String}`: A vector of strings to group.
+- `method::ComparisonMethod`: The comparison method to use.
+- `kws...`: Additional keyword arguments.
+
+# Returns
+- `group_inds::Vector{Vector{Int}}`: Groups of indices representing similar strings.
+- `group_similarities::Vector{Vector{Float64}}`: Similarity scores for the groups.
+"""
 function group_similar(strings::Vector{String}, method::ComparisonMethod; kws...)
     
     indices, similarity_vector = text_similarity(strings, method);
