@@ -25,16 +25,16 @@ function DirectComparison(; shorten_words = true, trim_code = true, remove_comme
     return DirectComparison(shorten_words, trim_code, remove_comments, relative_similarity)
 end
 
-struct DocumentTermsComparion <: ComparisonMethod 
+struct DocumentTermsComparison <: ComparisonMethod 
     inverse_term_frequency::Bool
     trim_code::Bool
     remove_comments::Bool
 end
 
 """
-    DocumentTermsComparion(; inverse_term_frequency = true, trim_code = true, remove_comments = false)
+    DocumentTermsComparison(; inverse_term_frequency = true, trim_code = true, remove_comments = false)
 
-Creates a `DocumentTermsComparion` method for comparing strings based on document terms.
+Creates a `DocumentTermsComparison` method for comparing strings based on document terms.
 
 # Arguments
 - `inverse_term_frequency::Bool`: Whether to use inverse term frequency.
@@ -42,10 +42,10 @@ Creates a `DocumentTermsComparion` method for comparing strings based on documen
 - `remove_comments::Bool`: Whether to remove comments from the strings.
 
 # Returns
-A `DocumentTermsComparion` instance.
+A `DocumentTermsComparison` instance.
 """
-function DocumentTermsComparion(; inverse_term_frequency = true, trim_code = true, remove_comments = false)
-    return DocumentTermsComparion(inverse_term_frequency, trim_code, remove_comments)
+function DocumentTermsComparison(; inverse_term_frequency = true, trim_code = true, remove_comments = false)
+    return DocumentTermsComparison(inverse_term_frequency, trim_code, remove_comments)
 end
 
 function shorten_words(strdoc::StringDocument)
@@ -177,19 +177,19 @@ function text_similarity(strings::Vector{String}, method::DirectComparison)
 end
 
 """
-    text_similarity(strings::Vector{String}, method::DocumentTermsComparion)
+    text_similarity(strings::Vector{String}, method::DocumentTermsComparison)
 
-Computes the similarity between strings using the `DocumentTermsComparion` method.
+Computes the similarity between strings using the `DocumentTermsComparison` method.
 
 # Arguments
 - `strings::Vector{String}`: A vector of strings to compare.
-- `method::DocumentTermsComparion`: The comparison method to use.
+- `method::DocumentTermsComparison`: The comparison method to use.
 
 # Returns
 - `indices::Vector{Vector{Int}}`: Pairs of indices representing similar strings.
 - `similarity_vector::Vector{Float64}`: Similarity scores for the pairs.
 """
-function text_similarity(strings::Vector{String}, method::DocumentTermsComparion)
+function text_similarity(strings::Vector{String}, method::DocumentTermsComparison)
 
     inverse_term_frequency = method.inverse_term_frequency
 

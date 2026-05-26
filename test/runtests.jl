@@ -28,7 +28,7 @@ using Test, Random, LinearAlgebra
         string(str_vec[i]...)
     end
 
-    method = DocumentTermsComparion(inverse_term_frequency = false)
+    method = DocumentTermsComparison(inverse_term_frequency = false)
 
     indices, similarity_vector = text_similarity(strings, method);
 
@@ -53,7 +53,7 @@ using Test, Random, LinearAlgebra
     @test sort(group_inds[1][1:3]) == [1,2,3];
 
 
-    method = DocumentTermsComparion(inverse_term_frequency = true)
+    method = DocumentTermsComparison(inverse_term_frequency = true)
 
     indices, similarity_vector = text_similarity(strings, method);
 
