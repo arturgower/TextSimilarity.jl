@@ -86,71 +86,76 @@ function shorten_words(strdoc::StringDocument)
     return strdoc
 end
 
-function trimmed_string_document(str::String; remove_comments = false)
+function trim_and_split(str::String; remove_comments = false)
 
     # if remove_comments && !trim_code
     #     error("trim_code should be true if you want to remove comments")
     # end
 
-    str = replace(str, ';' => "" )
+    # str = replace(str, ';' => "" )
     str = replace(str, '_' => "" )
+    str = replace(str, ' ' =>"")
     
-    s_split = split(str,"\n");
+    if remove_comments
+        str = replace(str, r"%[^\n]*" => "")
+    end
+
+    s_split = split(str,['\n',';'])
 
     # remove empty lines
     s_split = s_split[findall(s_split .!= "")]
 
-    if remove_comments 
-        s_inds =  findall(s -> !isempty(s) && s[1] != '%', s_split)
-        s_split = s_split[s_inds]
-    end    
+    # s_split = [string(s,"\n") for s in s_split]
 
-    s_split = [string(s,"\n") for s in s_split]
-
-    str_doc = StringDocument(string(s_split...)[1:end-1])
-
-    remove_case!(str_doc)
-    # stem!(str_doc)
-
-    return str_doc
+    return [remove_case(s) for s in s_split]
 end
 
 function process_strings(strings::Vector{String}, method::DirectComparison)
-    stringdocs = if method.trim_code
-        trimmed_string_document.(strings; remove_comments = method.remove_comments)
+    strings_vec = if method.trim_code
+        trim_and_split.(strings; remove_comments = method.remove_comments)
     else
-        StringDocument.(strings)
+        [[s] for s in strings]
     end
+
+    stringdocs_vec = [StringDocument.(s_vec) for s_vec in strings_vec]
 
     if method.shorten_words
-        stringdocs = shorten_words.(stringdocs);
+        stringdocs_vec = [shorten_words.(docs) for docs in stringdocs_vec]
     end    
 
-    strings = map(stringdocs) do strdoc
-        str = replace(strdoc.text, " " => "")
-        str = replace(str, "\n" => "")
-        str = replace(str, "_" => "")
+    strings_vec = map(stringdocs_vec) do strdocs
+        str_vec = [replace(doc.text, " " => "") for doc in strdocs]
+        str_vec = [replace(s, "\n" => "") for s in str_vec]
+        str_vec = [replace(s, "_" => "") for s in str_vec]
     end
 
-    return strings
+    return strings_vec
 end
 
 function text_similarity(strings::Vector{String}, method::DirectComparison)
 
-    strings = process_strings(strings, method)
+    strings_vec = process_strings(strings, method)
 
-    string_vecs = [Int.(str |> collect) for str in strings]
+    int_arr = [[Int.(s |> collect) for s in str] for str in strings_vec]
 
     similarity_matrix = [
         begin
-            l = min(length(string_vecs[i]), length(string_vecs[j]))
+            l = min(length(int_arr[i]), length(int_arr[j]))
             if l == 0
                 0.0
-            else    
-                dot(string_vecs[i][1:l],string_vecs[j][1:l]) / (norm(string_vecs[i]) * norm(string_vecs[j]))
-            end    
+            else
+                sim = map(1:l) do k
+                    len = min(length(int_arr[i][k]), length(int_arr[j][k]))
+                    if len == 0
+                        0.0
+                    else
+                        dot(int_arr[i][k][1:len],int_arr[j][k][1:len]) / (norm(int_arr[i][k]) * norm(int_arr[j][k]))
+                    end    
+                end |> sum
+                sim / l
+            end
         end    
-    for i = 1:length(string_vecs), j = 1:length(string_vecs)]
+    for i = 1:length(int_arr), j = 1:length(int_arr)]
 
     similarity_vector = if method.relative_similarity
         similaritytogroup = [
@@ -162,9 +167,8 @@ function text_similarity(strings::Vector{String}, method::DirectComparison)
     else similarity_matrix[:]    
     end
 
-    indices = [ [i,j] for i = 1:length(string_vecs), j = 1:length(string_vecs)][:]
+    indices = [ [i,j] for i = 1:length(int_arr), j = 1:length(int_arr)][:]
 
-    # indices_delete = findall(similarity_vector .== -1.0)
     indices_delete = findall([ij[1] >= ij[2] for ij in indices])
     deleteat!(similarity_vector,indices_delete)
     deleteat!(indices,indices_delete)
@@ -194,7 +198,9 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsCompariso
     inverse_term_frequency = method.inverse_term_frequency
 
     corpus = if method.trim_code
-        Corpus(trimmed_string_document.(strings; remove_comments = method.remove_comments))
+        strings_vec = trim_and_split.(strings; remove_comments = method.remove_comments)
+        strings = [string(s_vec...) for s_vec in strings_vec]
+        Corpus(StringDocument.(strings))
     else
         Corpus(StringDocument.(strings))
     end    

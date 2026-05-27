@@ -17,7 +17,7 @@
 module TextSimilarity
 
 export DirectComparison, DocumentTermsComparison
-export shorten_words, trimmed_string_document, process_strings, text_similarity, group_similar
+export shorten_words, trim_and_split, process_strings, text_similarity, group_similar
 
 using TextAnalysis, LinearAlgebra
 using Statistics, Random

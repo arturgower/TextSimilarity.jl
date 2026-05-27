@@ -57,7 +57,7 @@ using Test, Random, LinearAlgebra
 
     indices, similarity_vector = text_similarity(strings, method);
 
-    group_inds, group_similarities = group_similar(strings, method; similarity_tolerance = 0.65);
+    group_inds, group_similarities = group_similar(strings, method; similarity_tolerance = 0.6);
 
     @test sort(group_inds[1][1:3]) == [1,2,3];
 
