@@ -38,5 +38,8 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v1
+      - name: Remove manifests on nightly
+        if: matrix.version == 'nightly'
+        run: rm -f Manifest.toml test/Manifest.toml
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
