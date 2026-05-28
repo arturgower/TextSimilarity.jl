@@ -4,11 +4,12 @@ struct DirectComparison <: ComparisonMethod
     shorten_words::Bool
     trim_code::Bool
     remove_comments::Bool
+    separate_comments::Bool
     relative_similarity::Bool
 end
 
 """
-    DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false, relative_similarity = false)
+    DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false, separate_comments = true, relative_similarity = false)
 
 Creates a `DirectComparison` method for comparing strings directly.
 
@@ -16,13 +17,14 @@ Creates a `DirectComparison` method for comparing strings directly.
 - `shorten_words::Bool`: Whether to shorten words in the strings.
 - `trim_code::Bool`: Whether to trim code (remove unnecessary characters).
 - `remove_comments::Bool`: Whether to remove comments from the strings.
+- `separate_comments::Bool`: Whether to separate comments and compare them separately with inverse term frequency.
 - `relative_similarity::Bool`: Whether to compute relative similarity.
 
 # Returns
 A `DirectComparison` instance.
 """
-function DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false, relative_similarity = false)
-    return DirectComparison(shorten_words, trim_code, remove_comments, relative_similarity)
+function DirectComparison(; shorten_words = true, trim_code = true, remove_comments = false, separate_comments = true, relative_similarity = false)
+    return DirectComparison(shorten_words, trim_code, remove_comments, separate_comments, relative_similarity)
 end
 
 struct DocumentTermsComparison <: ComparisonMethod 
@@ -121,7 +123,7 @@ function process_strings(strings::Vector{String}, method::DirectComparison)
 
     if method.shorten_words
         stringdocs_vec = [shorten_words.(docs) for docs in stringdocs_vec]
-    end    
+    end
 
     strings_vec = map(stringdocs_vec) do strdocs
         str_vec = [replace(doc.text, " " => "") for doc in strdocs]
@@ -132,13 +134,39 @@ function process_strings(strings::Vector{String}, method::DirectComparison)
     return strings_vec
 end
 
-function text_similarity(strings::Vector{String}, method::DirectComparison)
+"""
+    similarity_matrix(strings::Vector{String}, method::ComparisonMethod)
+
+Builds a pairwise similarity matrix for `strings` using method-specific dispatch.
+
+This function is specialized by method type:
+- `similarity_matrix(strings, ::DirectComparison)`: compares processed lines directly.
+- `similarity_matrix(strings, ::DocumentTermsComparison)`: compares document-term vectors.
+
+# Arguments
+- `strings::Vector{String}`: A vector of strings to compare.
+- `method::ComparisonMethod`: The comparison strategy, used for dispatch to a specialized implementation.
+
+# Returns
+- `Matrix{Float64}`: Pairwise similarity scores produced by the selected method.
+"""
+function similarity_matrix(strings::Vector{String}, method::DirectComparison)
+
+    if method.separate_comments
+        string_comments = [join((m.match for m in eachmatch(r"%[^\n]*", str)), "\n") for str in strings]
+        strings = replace.(strings, r"%[^\n]*" => "")
+
+        sim_comments_matrix = similarity_matrix(
+            string_comments,
+            DocumentTermsComparison(; inverse_term_frequency = true, trim_code = false, remove_comments = false),
+        )
+    end
 
     strings_vec = process_strings(strings, method)
 
     int_arr = [[Int.(s |> collect) for s in str] for str in strings_vec]
 
-    similarity_matrix = [
+    sim_matrix = [
         begin
             l = min(length(int_arr[i]), length(int_arr[j]))
             if l == 0
@@ -157,44 +185,33 @@ function text_similarity(strings::Vector{String}, method::DirectComparison)
         end    
     for i = 1:length(int_arr), j = 1:length(int_arr)]
 
-    similarity_vector = if method.relative_similarity
-        similaritytogroup = [
-            mean(similarity_matrix[i[1],[1:(i[2]-1); (i[2]+1):end]]) / 2  +
-            mean(similarity_matrix[[1:(i[1]-1); (i[1]+1):end],i[2]]) / 2
-        for i in CartesianIndices(similarity_matrix)]
-
-        (similarity_matrix - similaritytogroup)[:]
-    else similarity_matrix[:]    
+    # If the comments are completely different, but the code is the same, then the similarity should be 1. If the comments are almost the same, but some different in the code, then the similarity should also be high.
+    sim_matrix = if method.separate_comments
+        for i in eachindex(sim_matrix)
+            if sim_comments_matrix[i] > sim_matrix[i]
+                sim_matrix[i] = (sim_comments_matrix[i] + sim_matrix[i]) / 2
+            else sim_matrix[i]
+            end
+        end
+        sim_matrix
+    else sim_matrix
     end
 
-    indices = [ [i,j] for i = 1:length(int_arr), j = 1:length(int_arr)][:]
+    sim_matrix = if method.relative_similarity
+        similaritytogroup = [
+            mean(sim_matrix[i[1],[1:(i[2]-1); (i[2]+1):end]]) / 2  +
+            mean(sim_matrix[[1:(i[1]-1); (i[1]+1):end],i[2]]) / 2
+        for i in CartesianIndices(sim_matrix)]
 
-    indices_delete = findall([ij[1] >= ij[2] for ij in indices])
-    deleteat!(similarity_vector,indices_delete)
-    deleteat!(indices,indices_delete)
+        (sim_matrix - similaritytogroup)
+    else sim_matrix
+    end
 
-    sort_inds = sortperm(similarity_vector; rev = true)
-    indices = indices[sort_inds]
-    similarity_vector = similarity_vector[sort_inds]
-
-    return indices, similarity_vector
+    return sim_matrix
 end
 
-"""
-    text_similarity(strings::Vector{String}, method::DocumentTermsComparison)
-
-Computes the similarity between strings using the `DocumentTermsComparison` method.
-
-# Arguments
-- `strings::Vector{String}`: A vector of strings to compare.
-- `method::DocumentTermsComparison`: The comparison method to use.
-
-# Returns
-- `indices::Vector{Vector{Int}}`: Pairs of indices representing similar strings.
-- `similarity_vector::Vector{Float64}`: Similarity scores for the pairs.
-"""
-function text_similarity(strings::Vector{String}, method::DocumentTermsComparison)
-
+function similarity_matrix(strings::Vector{String}, method::DocumentTermsComparison)
+    
     inverse_term_frequency = method.inverse_term_frequency
 
     corpus = if method.trim_code
@@ -223,23 +240,44 @@ function text_similarity(strings::Vector{String}, method::DocumentTermsCompariso
         dtm(m, :dense) |> transpose |> collect
     end    
 
-    similarity_matrix = [
-        if i >= j 
-            -1.0
-        elseif norm(tfs[:,i]) == 0 || norm(tfs[:,j]) == 0
+    sim_matrix = [
+        if norm(tfs[:,i]) == 0 || norm(tfs[:,j]) == 0
             0.0     
         else     
             dot(tfs[:,i],tfs[:,j]) / (norm(tfs[:,i]) * norm(tfs[:,j]))
         end    
     for i = 1:size(tfs,2), j = 1:size(tfs,2)]
 
+    return sim_matrix
+end
 
-    similarity_vector = similarity_matrix[:]
-    indices = [ [i,j] for i = 1:size(tfs,2), j = 1:size(tfs,2)][:]
+"""
+    text_similarity(strings::Vector{String}, method::ComparisonMethod)
 
-    indices_delete = findall(similarity_vector .== -1.0)
-    deleteat!(similarity_vector,indices_delete)
-    deleteat!(indices,indices_delete)
+Computes ranked pairwise similarities for `strings` using any `ComparisonMethod`.
+
+`text_similarity` is generic and relies on multiple dispatch: it calls
+`similarity_matrix(strings, method)` and therefore automatically uses the
+specialized implementation for the concrete method type.
+
+# Arguments
+- `strings::Vector{String}`: A vector of strings to compare.
+- `method::ComparisonMethod`: The comparison method instance.
+
+# Returns
+- `indices::Vector{Vector{Int}}`: Pairs of indices representing similar strings.
+- `similarity_vector::Vector{Float64}`: Similarity scores for the pairs.
+"""
+function text_similarity(strings::Vector{String}, method::ComparisonMethod)
+
+    sim_matrix = similarity_matrix(strings, method)
+
+    indices = [ [i,j] for i = 1:size(sim_matrix,1) for j = (i+1):size(sim_matrix,2)]
+    similarity_vector = [sim_matrix[ind...] for ind in indices][:]
+    
+    # indices_delete = findall(similarity_vector .== -1.0)
+    # deleteat!(similarity_vector,indices_delete)
+    # deleteat!(indices,indices_delete)
 
     sort_inds = sortperm(similarity_vector; rev = true)
     indices = indices[sort_inds]

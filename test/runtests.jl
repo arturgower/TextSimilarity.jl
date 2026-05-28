@@ -69,8 +69,6 @@ using Test, Random, LinearAlgebra
     indices, similarity_vector = text_similarity(strings, method);
 
     method = DirectComparison(shorten_words = false, trim_code = false)
-
-    # shortening words really messes this up, as inserting symbols created new words
     indices, similarity_vector = text_similarity(strings, method);
 
     group_inds, group_similarities = group_similar(strings, method; similarity_tolerance = 0.97);
